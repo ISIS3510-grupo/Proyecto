@@ -1,0 +1,23 @@
+{
+  "fields": {
+    "currentSemesterId": {
+      "stringValue": "2026-2"
+    },
+    "categories": {
+      "arrayValue": {
+        "values": [
+          {"stringValue": "electronics"},
+          {"stringValue": "documents"},
+          {"stringValue": "keys"},
+          {"stringValue": "bags"},
+          {"stringValue": "clothing"},
+          {"stringValue": "accessories"},
+          {"stringValue": "other"}
+        ]
+      }
+    },
+    "matchingThreshold": {
+      "doubleValue": 0.70
+    }
+  }
+}
