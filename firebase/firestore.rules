@@ -1,0 +1,296 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function campusUser() {
+      return request.auth != null
+        && request.auth.token.email is string
+        && request.auth.token.email.matches('^[^@]+@uniandes[.]edu[.]co$')
+        && request.auth.token.email_verified == true;
+    }
+
+    function self(uid) {
+      return campusUser() && request.auth.uid == uid;
+    }
+
+    function admin() {
+      return campusUser()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function validTransition(before, after) {
+      return (before == 'reported' && after == 'found')
+        || (before == 'found' && after == 'ready_for_pickup')
+        || (before == 'ready_for_pickup' && after == 'claimed')
+        || (before == 'claimed' && after == 'closed');
+    }
+
+    function stageTimeField(status) {
+      return status == 'found' ? 'foundAt'
+        : status == 'ready_for_pickup' ? 'readyForPickupAt'
+        : status == 'claimed' ? 'claimedAt'
+        : 'closedAt';
+    }
+
+    function eventAfter(reportId, targetStatus) {
+      let eventId = reportId + '_' + targetStatus;
+      return getAfter(/databases/$(database)/documents/reportStatusEvents/$(eventId));
+    }
+
+    match /users/{uid} {
+      allow get: if self(uid) || admin();
+      allow list: if admin();
+      allow create: if self(uid)
+        && request.resource.data.keys().hasOnly(['email', 'displayName', 'role', 'createdAt'])
+        && request.resource.data.keys().hasAll(['email', 'displayName', 'role', 'createdAt'])
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == 'student'
+        && request.resource.data.createdAt == request.time;
+      allow update: if self(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName']);
+      allow delete: if false;
+    }
+
+    match /lostReports/{reportId} {
+      allow read: if admin() || (campusUser() && resource.data.ownerUid == request.auth.uid);
+      allow create: if self(request.resource.data.ownerUid)
+        && request.resource.data.keys().hasOnly([
+          'ownerUid', 'category', 'title', 'description', 'status',
+          'locationName', 'latitude', 'longitude', 'imageUrl',
+          'reportedAt', 'statusChangedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'ownerUid', 'category', 'title', 'description', 'status',
+          'reportedAt', 'statusChangedAt'
+        ])
+        && request.resource.data.status == 'reported'
+        && request.resource.data.reportedAt == request.time
+        && request.resource.data.statusChangedAt == request.time;
+      allow update: if (
+        self(resource.data.ownerUid)
+        && resource.data.status == 'reported'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'title', 'description', 'locationName', 'latitude', 'longitude', 'imageUrl'
+        ])
+      ) || (
+        admin()
+        && validTransition(resource.data.status, request.resource.data.status)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'statusChangedAt', stageTimeField(request.resource.data.status)
+        ])
+        && request.resource.data.diff(resource.data).affectedKeys().hasAll([
+          'status', 'statusChangedAt', stageTimeField(request.resource.data.status)
+        ])
+        && request.resource.data.statusChangedAt == request.time
+        && request.resource.data.get(stageTimeField(request.resource.data.status), null)
+           == request.time
+        && eventAfter(reportId, request.resource.data.status).data.reportId == reportId
+        && eventAfter(reportId, request.resource.data.status).data.ownerUid
+           == resource.data.ownerUid
+        && eventAfter(reportId, request.resource.data.status).data.category
+           == resource.data.category
+        && eventAfter(reportId, request.resource.data.status).data.fromStatus
+           == resource.data.status
+        && eventAfter(reportId, request.resource.data.status).data.toStatus
+           == request.resource.data.status
+        && eventAfter(reportId, request.resource.data.status).data.occurredAt
+           == request.time
+      );
+      allow delete: if false;
+    }
+
+    match /lostReportPrivate/{reportId} {
+      allow get: if admin() || (campusUser() && resource.data.ownerUid == request.auth.uid);
+      allow list: if admin();
+      allow create: if self(request.resource.data.ownerUid)
+        && request.resource.data.keys().hasOnly(['ownerUid', 'privateVerificationDetail'])
+        && request.resource.data.keys().hasAll(['ownerUid', 'privateVerificationDetail'])
+        && getAfter(/databases/$(database)/documents/lostReports/$(reportId)).data.ownerUid
+           == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /foundItems/{itemId} {
+      allow read: if campusUser();
+      allow create: if self(request.resource.data.reporterUid)
+        && request.resource.data.keys().hasOnly([
+          'reporterUid', 'category', 'title', 'publicDescription',
+          'status', 'locationName', 'latitude', 'longitude', 'imageUrl',
+          'createdAt', 'semesterId', 'donationEligible', 'donationStatus'
+        ])
+        && request.resource.data.keys().hasAll([
+          'reporterUid', 'category', 'title', 'publicDescription',
+          'status', 'createdAt', 'semesterId', 'donationEligible', 'donationStatus'
+        ])
+        && request.resource.data.status == 'available'
+        && request.resource.data.semesterId is string
+        && request.resource.data.semesterId.size() > 0
+        && request.resource.data.donationEligible == false
+        && request.resource.data.donationStatus == 'none'
+        && request.resource.data.createdAt == request.time;
+      allow update: if admin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'donationEligible', 'donationStatus', 'status'
+        ])
+        && (
+          (resource.data.status == 'available'
+           && resource.data.donationStatus == 'none'
+           && resource.data.donationEligible == false
+           && request.resource.data.status == 'available'
+           && request.resource.data.donationStatus == 'eligible'
+           && request.resource.data.donationEligible == true)
+          ||
+          (resource.data.status == 'available'
+           && resource.data.donationStatus == 'eligible'
+           && resource.data.donationEligible == true
+           && request.resource.data.status == 'donated'
+           && request.resource.data.donationStatus == 'donated'
+           && request.resource.data.donationEligible == true)
+        );
+      allow delete: if false;
+    }
+
+    match /foundItemPrivate/{itemId} {
+      allow read: if admin();
+      allow create: if campusUser()
+        && request.resource.data.keys().hasOnly(['privateCharacteristics'])
+        && request.resource.data.keys().hasAll(['privateCharacteristics'])
+        && getAfter(/databases/$(database)/documents/foundItems/$(itemId)).data.reporterUid
+           == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /reportStatusEvents/{eventId} {
+      allow read: if admin() || (campusUser() && resource.data.ownerUid == request.auth.uid);
+      allow create: if admin()
+        && request.resource.data.keys().hasOnly([
+          'reportId', 'ownerUid', 'category', 'fromStatus', 'toStatus', 'occurredAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'reportId', 'ownerUid', 'category', 'fromStatus', 'toStatus', 'occurredAt'
+        ])
+        && eventId == request.resource.data.reportId + '_' + request.resource.data.toStatus
+        && validTransition(request.resource.data.fromStatus, request.resource.data.toStatus)
+        && request.resource.data.occurredAt == request.time
+        && get(/databases/$(database)/documents/lostReports/$(request.resource.data.reportId))
+           .data.status == request.resource.data.fromStatus
+        && getAfter(/databases/$(database)/documents/lostReports/$(request.resource.data.reportId))
+           .data.status == request.resource.data.toStatus
+        && getAfter(/databases/$(database)/documents/lostReports/$(request.resource.data.reportId))
+           .data.statusChangedAt == request.time
+        && getAfter(/databases/$(database)/documents/lostReports/$(request.resource.data.reportId))
+           .data.ownerUid == request.resource.data.ownerUid
+        && getAfter(/databases/$(database)/documents/lostReports/$(request.resource.data.reportId))
+           .data.category == request.resource.data.category;
+      allow update, delete: if false;
+    }
+
+    match /matches/{matchId} {
+      allow read: if admin() || (campusUser() && resource.data.ownerUid == request.auth.uid);
+      allow create: if admin()
+        && request.resource.data.keys().hasOnly([
+          'reportId', 'foundItemId', 'ownerUid', 'score',
+          'strategyName', 'strategyVersion', 'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'reportId', 'foundItemId', 'ownerUid', 'score',
+          'strategyName', 'strategyVersion', 'createdAt'
+        ])
+        && matchId == request.resource.data.reportId + '_' + request.resource.data.foundItemId
+        && request.resource.data.score is number
+        && request.resource.data.score >= 0
+        && request.resource.data.score <= 1
+        && request.resource.data.strategyName is string
+        && request.resource.data.strategyVersion is string
+        && request.resource.data.createdAt == request.time
+        && get(/databases/$(database)/documents/lostReports/$(request.resource.data.reportId))
+           .data.ownerUid == request.resource.data.ownerUid
+        && get(/databases/$(database)/documents/lostReports/$(request.resource.data.reportId))
+           .data.status == 'reported'
+        && get(/databases/$(database)/documents/foundItems/$(request.resource.data.foundItemId))
+           .data.status == 'available';
+      allow update, delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if admin() || (campusUser() && resource.data.recipientUid == request.auth.uid);
+      allow create: if admin()
+        && request.resource.data.keys().hasOnly([
+          'recipientUid', 'matchId', 'channel', 'sentAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'recipientUid', 'matchId', 'channel', 'sentAt'
+        ])
+        && notificationId == request.resource.data.matchId + '_' + request.resource.data.recipientUid
+        && request.resource.data.channel == 'in_app'
+        && request.resource.data.sentAt == request.time
+        && getAfter(/databases/$(database)/documents/matches/$(request.resource.data.matchId))
+           .data.ownerUid == request.resource.data.recipientUid;
+      allow update: if self(resource.data.recipientUid)
+        && resource.data.get('viewedAt', null) == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewedAt'])
+        && request.resource.data.viewedAt == request.time;
+      allow delete: if false;
+    }
+
+    match /performanceMetrics/{metricId} {
+      allow read: if admin();
+      allow create: if self(request.resource.data.uid)
+        && request.resource.data.keys().hasOnly([
+          'uid', 'metricType', 'platform', 'durationMs', 'recordedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'uid', 'metricType', 'platform', 'durationMs', 'recordedAt'
+        ])
+        && request.resource.data.metricType in ['match_search', 'report_registration']
+        && request.resource.data.platform in ['kotlin', 'flutter']
+        && request.resource.data.durationMs is number
+        && request.resource.data.durationMs >= 0
+        && request.resource.data.recordedAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /claims/{claimId} {
+      allow read: if admin() || (campusUser() && resource.data.claimantUid == request.auth.uid);
+      allow create: if self(request.resource.data.claimantUid)
+        && request.resource.data.keys().hasOnly([
+          'reportId', 'foundItemId', 'claimantUid', 'status', 'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'reportId', 'foundItemId', 'claimantUid', 'status', 'createdAt'
+        ])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/lostReports/$(request.resource.data.reportId))
+           .data.ownerUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /claimPrivate/{claimId} {
+      allow get: if admin() || (campusUser()
+        && get(/databases/$(database)/documents/claims/$(claimId)).data.claimantUid
+           == request.auth.uid);
+      allow list: if admin();
+      allow create: if campusUser()
+        && getAfter(/databases/$(database)/documents/claims/$(claimId)).data.claimantUid
+           == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /officeLocations/{locationId} {
+      allow read: if campusUser();
+      allow write: if false;
+    }
+
+    match /appConfig/{configId} {
+      allow read: if campusUser();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
