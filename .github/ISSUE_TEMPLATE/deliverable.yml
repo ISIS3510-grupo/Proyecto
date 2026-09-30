@@ -1,0 +1,30 @@
+name: Deliverable section
+description: A section of a sprint, micro-sprint or app report deliverable in the wiki
+title: "[Sprint X] "
+labels: ["type: docs"]
+body:
+  - type: input
+    id: deliverable
+    attributes:
+      label: Deliverable and section
+      placeholder: "Sprint 2 - 3.b Architecture design"
+    validations:
+      required: true
+  - type: textarea
+    id: content
+    attributes:
+      label: What must be delivered
+      description: Copy the requirement from the deliverable description (points included).
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Definition of done
+      value: |
+        - [ ] Content written in the wiki page
+        - [ ] Diagrams exported with enough resolution
+        - [ ] Rationale included for every diagram
+        - [ ] Reviewed by another member
+    validations:
+      required: true
