@@ -313,6 +313,47 @@ async function main() {
         donationStatus: 'donated'
       }), true);
 
+    // BQ Jhostin: uso de funcionalidades
+    const uso = (uid, extra = {}) => ({
+      uid,
+      feature: 'report_lost_item',
+      platform: 'flutter',
+      occurredAt: serverTimestamp(),
+      ...extra
+    });
+
+    await check('Camilo registra el uso de una funcionalidad',
+      setDoc(doc(camilo, 'featureUsageEvents/uso1'), uso('camilo')), true);
+
+    await check('Camilo no registra uso a nombre de Sofia',
+      setDoc(doc(camilo, 'featureUsageEvents/uso2'), uso('sofia')), false);
+
+    await check('No se acepta una funcionalidad desconocida',
+      setDoc(doc(camilo, 'featureUsageEvents/uso3'),
+        uso('camilo', { feature: 'borrar_todo' })), false);
+
+    await check('No se aceptan campos adicionales en el evento',
+      setDoc(doc(camilo, 'featureUsageEvents/uso4'),
+        uso('camilo', { email: 'camilo@uniandes.edu.co' })), false);
+
+    await check('Anónimo no registra uso',
+      setDoc(doc(anonimo, 'featureUsageEvents/uso5'), uso('anonimo')), false);
+
+    await check('Estudiante no lee eventos de uso',
+      getDoc(doc(camilo, 'featureUsageEvents/uso1')), false);
+
+    await check('Admin lee eventos de uso',
+      getDoc(doc(administrador, 'featureUsageEvents/uso1')), true);
+
+    await check('Estudiante no modifica un evento de uso',
+      updateDoc(doc(camilo, 'featureUsageEvents/uso1'), { feature: 'password_login' }), false);
+
+    await check('Estudiante no escribe agregados de analytics',
+      setDoc(doc(camilo, 'analytics/featureUsage'), { totals: {} }), false);
+
+    await check('Admin no escribe agregados desde la app',
+      setDoc(doc(administrador, 'analytics/featureUsage'), { totals: {} }), false);
+
     console.log('RESULTADO: todas las pruebas de permisos pasaron');
   } finally {
     await env.cleanup();

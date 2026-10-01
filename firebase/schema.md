@@ -52,6 +52,18 @@ claims/{claimId}
   reportId, foundItemId, claimantUid, status, createdAt, resolvedAt
   Las respuestas privadas de propiedad requieren acceso restringido.
 
+featureUsageEvents/{eventId}
+  uid, feature, platform, occurredAt
+  feature: search_found_items|report_lost_item|submit_lost_report|
+           report_found_item|view_my_report|password_login|biometric_login
+  platform: kotlin|flutter
+  Un documento por uso de una funcionalidad. Solo lo lee el admin.
+
+analytics/featureUsage
+  totals {feature: count}, last7Days {feature: count},
+  byPlatform {platform: {feature: count}}, eventCount, computedAt
+  Lo escribe la Cloud Function aggregateFeatureUsage. Solo lo lee el admin.
+
 officeLocations/{locationId}
   name, latitude, longitude, address, active
 
@@ -60,12 +72,13 @@ appConfig/general
 
 ## Preguntas de negocio
 
-BQ1 Johstin: lostReports + reportStatusEvents; reported -> found por categoría.
+BQ1 (funcionalidad Type 2 de Jhostin y Camilo): lostReports + reportStatusEvents; reported -> found por categoría.
 BQ2 Camilo: reportStatusEvents + estado actual de lostReports; etapa con mayor permanencia.
 BQ3 Sofia: notifications; enviados frente a vistos, con una ventana de medición definida.
 BQ4 Daniel: performanceMetrics con metricType=match_search.
 BQ5 Emilio: performanceMetrics con metricType=report_registration.
 BQ6 Alex: foundItems sin reclamar, por semestre, categoría y elegibilidad de donación.
+BQ7 Jhostin (Type 3): featureUsageEvents; uso de cada funcionalidad, total y últimos 7 días.
 
 ## Reglas del equipo
 
