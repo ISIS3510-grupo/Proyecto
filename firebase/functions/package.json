@@ -1,17 +1,23 @@
 {
-  "name": "campusfind-functions",
-  "private": true,
+  "name": "functions",
+  "version": "1.0.0",
+  "description": "CampusFind Firebase Cloud Functions",
   "main": "index.js",
-  "type": "commonjs",
   "engines": {
     "node": "22"
   },
   "scripts": {
-    "test": "node --test",
-    "deploy": "firebase deploy --only functions"
+    "start": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions",
+    "test": "node --test"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "private": true,
   "dependencies": {
-    "firebase-admin": "^13.0.0",
-    "firebase-functions": "^6.0.0"
+    "firebase-admin": "^14.5.0",
+    "firebase-functions": "^7.4.0",
+    "resend": "^6.31.0"
   }
 }
