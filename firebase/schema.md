@@ -12,7 +12,7 @@ users/{uid}
 
 lostReports/{reportId}
   ownerUid, category, title, description, status,
-  locationName, latitude, longitude, imageUrl,
+  locationName, latitude, longitude, photoPath,
   reportedAt, statusChangedAt, foundAt, readyForPickupAt, claimedAt, closedAt
   status: reported|found|ready_for_pickup|claimed|closed
 
@@ -22,7 +22,7 @@ lostReportPrivate/{reportId}
 
 foundItems/{itemId}
   reporterUid, category, title, publicDescription, status,
-  locationName, latitude, longitude, imageUrl,
+  locationName, latitude, longitude, photoPath,
   semesterId, donationEligible, donationStatus, createdAt
   Los datos de verificación privados van en otro documento.
 
@@ -70,7 +70,9 @@ BQ6 Alex: foundItems sin reclamar, por semestre, categoría y elegibilidad de do
 ## Reglas del equipo
 
 - Kotlin y Flutter usan exactamente estos nombres de campos y estados.
-- Al implementar fotos, los archivos irán en Storage; Firestore guardará imageUrl.
+- Las fotos van en Storage; Firestore guarda photoPath, la ruta del archivo (no una URL):
+  foundItems/{itemId}.jpg y lostReports/{reportId}.jpg. La app obtiene la URL con getDownloadURL.
+  Si no hay foto, el campo se omite.
 - Los detalles privados se guardan en documentos separados.
 - El admin cambia estados mediante un lote validado por reglas; las métricas del cliente no son datos auditados.
 - Los tiempos durationMs se miden en la app y se guardan en milisegundos.

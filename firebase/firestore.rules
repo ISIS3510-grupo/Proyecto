@@ -34,6 +34,12 @@ service cloud.firestore {
         : 'closedAt';
     }
 
+    // photoPath es la ruta en Storage, no una URL: <coleccion>/<docId>.jpg
+    function validPhotoPath(data, folder, docId) {
+      return data.get('photoPath', null) == null
+        || data.photoPath == folder + '/' + docId + '.jpg';
+    }
+
     function eventAfter(reportId, targetStatus) {
       let eventId = reportId + '_' + targetStatus;
       return getAfter(/databases/$(database)/documents/reportStatusEvents/$(eventId));
@@ -58,7 +64,7 @@ service cloud.firestore {
       allow create: if self(request.resource.data.ownerUid)
         && request.resource.data.keys().hasOnly([
           'ownerUid', 'category', 'title', 'description', 'status',
-          'locationName', 'latitude', 'longitude', 'imageUrl',
+          'locationName', 'latitude', 'longitude', 'photoPath',
           'reportedAt', 'statusChangedAt'
         ])
         && request.resource.data.keys().hasAll([
@@ -66,14 +72,16 @@ service cloud.firestore {
           'reportedAt', 'statusChangedAt'
         ])
         && request.resource.data.status == 'reported'
+        && validPhotoPath(request.resource.data, 'lostReports', reportId)
         && request.resource.data.reportedAt == request.time
         && request.resource.data.statusChangedAt == request.time;
       allow update: if (
         self(resource.data.ownerUid)
         && resource.data.status == 'reported'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'title', 'description', 'locationName', 'latitude', 'longitude', 'imageUrl'
+          'title', 'description', 'locationName', 'latitude', 'longitude', 'photoPath'
         ])
+        && validPhotoPath(request.resource.data, 'lostReports', reportId)
       ) || (
         admin()
         && validTransition(resource.data.status, request.resource.data.status)
@@ -117,7 +125,7 @@ service cloud.firestore {
       allow create: if self(request.resource.data.reporterUid)
         && request.resource.data.keys().hasOnly([
           'reporterUid', 'category', 'title', 'publicDescription',
-          'status', 'locationName', 'latitude', 'longitude', 'imageUrl',
+          'status', 'locationName', 'latitude', 'longitude', 'photoPath',
           'createdAt', 'semesterId', 'donationEligible', 'donationStatus'
         ])
         && request.resource.data.keys().hasAll([
@@ -125,6 +133,7 @@ service cloud.firestore {
           'status', 'createdAt', 'semesterId', 'donationEligible', 'donationStatus'
         ])
         && request.resource.data.status == 'available'
+        && validPhotoPath(request.resource.data, 'foundItems', itemId)
         && request.resource.data.semesterId is string
         && request.resource.data.semesterId.size() > 0
         && request.resource.data.donationEligible == false
