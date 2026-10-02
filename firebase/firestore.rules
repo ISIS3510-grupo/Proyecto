@@ -34,6 +34,12 @@ service cloud.firestore {
         : 'closedAt';
     }
 
+    // photoPath es la ruta en Storage, no una URL: <coleccion>/<docId>.jpg
+    function validPhotoPath(data, folder, docId) {
+      return data.get('photoPath', null) == null
+        || data.photoPath == folder + '/' + docId + '.jpg';
+    }
+
     function eventAfter(reportId, targetStatus) {
       let eventId = reportId + '_' + targetStatus;
       return getAfter(/databases/$(database)/documents/reportStatusEvents/$(eventId));
@@ -58,7 +64,7 @@ service cloud.firestore {
       allow create: if self(request.resource.data.ownerUid)
         && request.resource.data.keys().hasOnly([
           'ownerUid', 'category', 'title', 'description', 'status',
-          'locationName', 'latitude', 'longitude', 'imageUrl',
+          'locationName', 'latitude', 'longitude', 'photoPath',
           'reportedAt', 'statusChangedAt'
         ])
         && request.resource.data.keys().hasAll([
@@ -66,14 +72,16 @@ service cloud.firestore {
           'reportedAt', 'statusChangedAt'
         ])
         && request.resource.data.status == 'reported'
+        && validPhotoPath(request.resource.data, 'lostReports', reportId)
         && request.resource.data.reportedAt == request.time
         && request.resource.data.statusChangedAt == request.time;
       allow update: if (
         self(resource.data.ownerUid)
         && resource.data.status == 'reported'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'title', 'description', 'locationName', 'latitude', 'longitude', 'imageUrl'
+          'title', 'description', 'locationName', 'latitude', 'longitude', 'photoPath'
         ])
+        && validPhotoPath(request.resource.data, 'lostReports', reportId)
       ) || (
         admin()
         && validTransition(resource.data.status, request.resource.data.status)
@@ -117,7 +125,7 @@ service cloud.firestore {
       allow create: if self(request.resource.data.reporterUid)
         && request.resource.data.keys().hasOnly([
           'reporterUid', 'category', 'title', 'publicDescription',
-          'status', 'locationName', 'latitude', 'longitude', 'imageUrl',
+          'status', 'locationName', 'latitude', 'longitude', 'photoPath',
           'createdAt', 'semesterId', 'donationEligible', 'donationStatus'
         ])
         && request.resource.data.keys().hasAll([
@@ -125,6 +133,7 @@ service cloud.firestore {
           'status', 'createdAt', 'semesterId', 'donationEligible', 'donationStatus'
         ])
         && request.resource.data.status == 'available'
+        && validPhotoPath(request.resource.data, 'foundItems', itemId)
         && request.resource.data.semesterId is string
         && request.resource.data.semesterId.size() > 0
         && request.resource.data.donationEligible == false
@@ -239,8 +248,9 @@ service cloud.firestore {
       allow read: if admin();
       allow create: if self(request.resource.data.uid)
         && request.resource.data.keys().hasOnly([
-          'uid', 'metricType', 'platform', 'durationMs', 'recordedAt'
+          'uid', 'metricType', 'reportType', 'platform', 'durationMs', 'recordedAt'
         ])
+        && request.resource.data.get('reportType', 'lost') in ['lost', 'found']
         && request.resource.data.keys().hasAll([
           'uid', 'metricType', 'platform', 'durationMs', 'recordedAt'
         ])
@@ -304,10 +314,33 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Aggregates written only by Cloud Functions (Admin SDK bypasses these rules).
+    // Objetos reportados desde Flutter (ItemDao). Cualquier estudiante los ve;
+    // solo se crean con el correo de quien está autenticado.
+    match /items/{itemId} {
+      allow read: if campusUser();
+      allow create: if campusUser()
+        && request.resource.data.keys().hasOnly([
+          'title', 'description', 'category', 'location', 'userEmail', 'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'title', 'description', 'category', 'location', 'userEmail', 'createdAt'
+        ])
+        && request.resource.data.title is string
+        && request.resource.data.description is string
+        && request.resource.data.category is string
+        && request.resource.data.location is latlng
+        && request.resource.data.userEmail == request.auth.token.email
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // Agregados anónimos para las BQ. Los lee cualquier estudiante; el admin
+    // los recalcula desde la app (Flutter). featureUsage lo escribe la Cloud
+    // Function con Admin SDK, que no pasa por estas reglas.
     match /analytics/{docId} {
-      allow read: if admin();
-      allow write: if false;
+      allow read: if campusUser();
+      allow write: if admin()
+        && docId in ['reportBottleneck', 'reportRegistrationTime'];
     }
 
     match /{document=**} {

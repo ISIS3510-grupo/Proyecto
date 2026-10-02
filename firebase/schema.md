@@ -12,7 +12,7 @@ users/{uid}
 
 lostReports/{reportId}
   ownerUid, category, title, description, status,
-  locationName, latitude, longitude, imageUrl,
+  locationName, latitude, longitude, photoPath,
   reportedAt, statusChangedAt, foundAt, readyForPickupAt, claimedAt, closedAt
   status: reported|found|ready_for_pickup|claimed|closed
 
@@ -22,7 +22,7 @@ lostReportPrivate/{reportId}
 
 foundItems/{itemId}
   reporterUid, category, title, publicDescription, status,
-  locationName, latitude, longitude, imageUrl,
+  locationName, latitude, longitude, photoPath,
   semesterId, donationEligible, donationStatus, createdAt
   Los datos de verificación privados van en otro documento.
 
@@ -44,9 +44,18 @@ notifications/{notificationId}
   Una notificación por coincidencia y destinatario.
 
 performanceMetrics/{metricId}
-  uid, metricType, platform, durationMs, recordedAt
+  uid, metricType, reportType (opcional), platform, durationMs, recordedAt
   metricType: match_search|report_registration
+  reportType: lost|found
   platform: kotlin|flutter
+
+items/{itemId}
+  title, description, category, location (GeoPoint), userEmail, createdAt
+  Objetos reportados desde Flutter. userEmail es el correo de quien reporta.
+
+analytics/{docId}
+  Agregados anónimos de las BQ, sin datos personales. Los lee cualquier estudiante.
+  reportBottleneck y reportRegistrationTime: los recalcula el admin desde Flutter.
 
 claims/{claimId}
   reportId, foundItemId, claimantUid, status, createdAt, resolvedAt
@@ -83,7 +92,9 @@ BQ7 Jhostin (Type 3): featureUsageEvents; uso de cada funcionalidad, total y úl
 ## Reglas del equipo
 
 - Kotlin y Flutter usan exactamente estos nombres de campos y estados.
-- Al implementar fotos, los archivos irán en Storage; Firestore guardará imageUrl.
+- Las fotos van en Storage; Firestore guarda photoPath, la ruta del archivo (no una URL):
+  foundItems/{itemId}.jpg y lostReports/{reportId}.jpg. La app obtiene la URL con getDownloadURL.
+  Si no hay foto, el campo se omite.
 - Los detalles privados se guardan en documentos separados.
 - El admin cambia estados mediante un lote validado por reglas; las métricas del cliente no son datos auditados.
 - Los tiempos durationMs se miden en la app y se guardan en milisegundos.
