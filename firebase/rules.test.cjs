@@ -94,6 +94,70 @@ async function main() {
         createdAt: serverTimestamp()
       }), true);
 
+    await check('Camilo crea objeto encontrado con foto en Storage',
+      setDoc(doc(camilo, 'foundItems/objeto2'), {
+        reporterUid: 'camilo',
+        category: 'electronics',
+        title: 'Audífonos encontrados',
+        publicDescription: 'Audífonos blancos',
+        status: 'available',
+        photoPath: 'foundItems/objeto2.jpg',
+        semesterId: '2026-2',
+        donationEligible: false,
+        donationStatus: 'none',
+        createdAt: serverTimestamp()
+      }), true);
+
+    await check('photoPath de objeto debe apuntar a su propio archivo',
+      setDoc(doc(camilo, 'foundItems/objeto3'), {
+        reporterUid: 'camilo',
+        category: 'electronics',
+        title: 'Audífonos encontrados',
+        publicDescription: 'Audífonos blancos',
+        status: 'available',
+        photoPath: 'foundItems/otro.jpg',
+        semesterId: '2026-2',
+        donationEligible: false,
+        donationStatus: 'none',
+        createdAt: serverTimestamp()
+      }), false);
+
+    await check('imageUrl ya no es un campo permitido',
+      setDoc(doc(camilo, 'foundItems/objeto4'), {
+        reporterUid: 'camilo',
+        category: 'electronics',
+        title: 'Audífonos encontrados',
+        publicDescription: 'Audífonos blancos',
+        status: 'available',
+        imageUrl: 'https://example.com/foto.jpg',
+        semesterId: '2026-2',
+        donationEligible: false,
+        donationStatus: 'none',
+        createdAt: serverTimestamp()
+      }), false);
+
+    await check('Camilo crea reporte con foto en Storage',
+      setDoc(doc(camilo, 'lostReports/reporte2'), {
+        ownerUid: 'camilo',
+        category: 'electronics',
+        title: 'Audífonos',
+        description: 'Audífonos extraviados',
+        status: 'reported',
+        photoPath: 'lostReports/reporte2.jpg',
+        reportedAt: serverTimestamp(),
+        statusChangedAt: serverTimestamp()
+      }), true);
+
+    await check('Camilo agrega la foto a su reporte después',
+      updateDoc(doc(camilo, 'lostReports/reporte1'), {
+        photoPath: 'lostReports/reporte1.jpg'
+      }), true);
+
+    await check('Camilo no apunta su reporte a la foto de otro',
+      updateDoc(doc(camilo, 'lostReports/reporte1'), {
+        photoPath: 'foundItems/objeto2.jpg'
+      }), false);
+
     await check('Sofia lee descripción pública',
       getDoc(doc(sofia, 'foundItems/objeto1')), true);
 
