@@ -299,6 +299,21 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // BQ Jhostin (Type 3): which features students use the most.
+    match /featureUsageEvents/{eventId} {
+      allow read: if admin();
+      allow create: if self(request.resource.data.uid)
+        && request.resource.data.keys().hasOnly(['uid', 'feature', 'platform', 'occurredAt'])
+        && request.resource.data.keys().hasAll(['uid', 'feature', 'platform', 'occurredAt'])
+        && request.resource.data.feature in [
+          'search_found_items', 'report_lost_item', 'submit_lost_report',
+          'report_found_item', 'view_my_report', 'password_login', 'biometric_login'
+        ]
+        && request.resource.data.platform in ['flutter', 'kotlin']
+        && request.resource.data.occurredAt == request.time;
+      allow update, delete: if false;
+    }
+
     // Objetos reportados desde Flutter (ItemDao). Cualquier estudiante los ve;
     // solo se crean con el correo de quien está autenticado.
     match /items/{itemId} {
