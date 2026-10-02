@@ -3,7 +3,8 @@ const {
   initializeTestEnvironment, assertSucceeds, assertFails
 } = require('@firebase/rules-unit-testing');
 const {
-  doc, setDoc, getDoc, updateDoc, writeBatch, serverTimestamp
+  doc, setDoc, getDoc, getDocs, collection, updateDoc, writeBatch, serverTimestamp,
+  GeoPoint
 } = require('firebase/firestore');
 
 async function check(nombre, operacion, permitido) {
@@ -376,6 +377,58 @@ async function main() {
         status: 'donated',
         donationStatus: 'donated'
       }), true);
+
+    const item = {
+      title: 'Botella',
+      description: 'Botella azul',
+      category: 'other',
+      location: new GeoPoint(4.6014, -74.0661),
+      userEmail: 'sofia@uniandes.edu.co',
+      createdAt: serverTimestamp()
+    };
+
+    await check('Sofia reporta un item desde Flutter',
+      setDoc(doc(sofia, 'items/item1'), item), true);
+
+    await check('Sofia no reporta un item con el correo de otro',
+      setDoc(doc(sofia, 'items/item2'), { ...item, userEmail: 'camilo@uniandes.edu.co' }),
+      false);
+
+    await check('Item con campos extra no se guarda',
+      setDoc(doc(sofia, 'items/item3'), { ...item, extra: true }), false);
+
+    await check('Camilo lista los items',
+      getDocs(collection(camilo, 'items')), true);
+
+    await check('Correo externo no lee items',
+      getDocs(collection(externo, 'items')), false);
+
+    await check('Admin recalcula el cuello de botella',
+      setDoc(doc(administrador, 'analytics/reportBottleneck'), {
+        reported: 1, found: 0, ready_for_pickup: 0, claimed: 0,
+        updatedAt: serverTimestamp()
+      }), true);
+
+    await check('Estudiante no escribe agregados',
+      setDoc(doc(camilo, 'analytics/reportBottleneck'), { reported: 99 }), false);
+
+    await check('Admin no escribe agregados fuera de la lista',
+      setDoc(doc(administrador, 'analytics/featureUsage'), { eventCount: 1 }), false);
+
+    await check('Estudiante lee un agregado',
+      getDoc(doc(camilo, 'analytics/reportBottleneck')), true);
+
+    await check('Métrica de registro con reportType',
+      setDoc(doc(camilo, 'performanceMetrics/medicionTipo'), {
+        uid: 'camilo', metricType: 'report_registration', reportType: 'found',
+        platform: 'flutter', durationMs: 900, recordedAt: serverTimestamp()
+      }), true);
+
+    await check('reportType inválido no se guarda',
+      setDoc(doc(camilo, 'performanceMetrics/medicionMala'), {
+        uid: 'camilo', metricType: 'report_registration', reportType: 'otro',
+        platform: 'flutter', durationMs: 900, recordedAt: serverTimestamp()
+      }), false);
 
     console.log('RESULTADO: todas las pruebas de permisos pasaron');
   } finally {

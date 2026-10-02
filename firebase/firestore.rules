@@ -248,8 +248,9 @@ service cloud.firestore {
       allow read: if admin();
       allow create: if self(request.resource.data.uid)
         && request.resource.data.keys().hasOnly([
-          'uid', 'metricType', 'platform', 'durationMs', 'recordedAt'
+          'uid', 'metricType', 'reportType', 'platform', 'durationMs', 'recordedAt'
         ])
+        && request.resource.data.get('reportType', 'lost') in ['lost', 'found']
         && request.resource.data.keys().hasAll([
           'uid', 'metricType', 'platform', 'durationMs', 'recordedAt'
         ])
@@ -296,6 +297,35 @@ service cloud.firestore {
     match /appConfig/{configId} {
       allow read: if campusUser();
       allow write: if false;
+    }
+
+    // Objetos reportados desde Flutter (ItemDao). Cualquier estudiante los ve;
+    // solo se crean con el correo de quien está autenticado.
+    match /items/{itemId} {
+      allow read: if campusUser();
+      allow create: if campusUser()
+        && request.resource.data.keys().hasOnly([
+          'title', 'description', 'category', 'location', 'userEmail', 'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'title', 'description', 'category', 'location', 'userEmail', 'createdAt'
+        ])
+        && request.resource.data.title is string
+        && request.resource.data.description is string
+        && request.resource.data.category is string
+        && request.resource.data.location is latlng
+        && request.resource.data.userEmail == request.auth.token.email
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // Agregados anónimos para las BQ. Los lee cualquier estudiante; el admin
+    // los recalcula desde la app (Flutter). featureUsage lo escribe la Cloud
+    // Function con Admin SDK, que no pasa por estas reglas.
+    match /analytics/{docId} {
+      allow read: if campusUser();
+      allow write: if admin()
+        && docId in ['reportBottleneck', 'reportRegistrationTime'];
     }
 
     match /{document=**} {

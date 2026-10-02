@@ -44,9 +44,18 @@ notifications/{notificationId}
   Una notificación por coincidencia y destinatario.
 
 performanceMetrics/{metricId}
-  uid, metricType, platform, durationMs, recordedAt
+  uid, metricType, reportType (opcional), platform, durationMs, recordedAt
   metricType: match_search|report_registration
+  reportType: lost|found
   platform: kotlin|flutter
+
+items/{itemId}
+  title, description, category, location (GeoPoint), userEmail, createdAt
+  Objetos reportados desde Flutter. userEmail es el correo de quien reporta.
+
+analytics/{docId}
+  Agregados anónimos de las BQ, sin datos personales. Los lee cualquier estudiante.
+  reportBottleneck y reportRegistrationTime: los recalcula el admin desde Flutter.
 
 claims/{claimId}
   reportId, foundItemId, claimantUid, status, createdAt, resolvedAt
