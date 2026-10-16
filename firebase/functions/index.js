@@ -182,3 +182,100 @@ exports.aggregateFeatureUsage =
       });
     }
   );
+
+// External service (Jhostin): Google Cloud Vision reads the photo of a lost
+// item and suggests its category and a short description before the student
+// sends the report. Called from Flutter with the compressed photo in base64.
+const { onCall, HttpsError } =
+  require("firebase-functions/v2/https");
+
+const { ImageAnnotatorClient } =
+  require("@google-cloud/vision");
+
+const { suggestFromAnnotation } =
+  require("./photo-labels");
+
+// The app sends photos of at most 1280 px at quality 70 (about 300 KB);
+// 2 MB of base64 leaves room without accepting arbitrary files.
+const MAX_PHOTO_BASE64_LENGTH =
+  2 * 1024 * 1024;
+
+const UNIANDES_EMAIL =
+  /^[^@]+@uniandes\.edu\.co$/;
+
+let visionClient;
+
+exports.suggestPhotoLabels =
+  onCall(
+    {
+      region: "us-east1",
+      memory: "512MiB",
+      timeoutSeconds: 30,
+      maxInstances: 5
+    },
+    async (request) => {
+      // Same condition as campusUser() in firestore.rules.
+      const token =
+        request.auth?.token;
+
+      if (
+        !token ||
+        token.email_verified !== true ||
+        !UNIANDES_EMAIL.test(token.email || "")
+      ) {
+        throw new HttpsError(
+          "unauthenticated",
+          "Sign in with a verified Uniandes account."
+        );
+      }
+
+      const image =
+        request.data?.image;
+
+      if (
+        typeof image !== "string" ||
+        image.length === 0 ||
+        image.length > MAX_PHOTO_BASE64_LENGTH
+      ) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Send one compressed photo in base64."
+        );
+      }
+
+      visionClient ??=
+        new ImageAnnotatorClient();
+
+      let annotation;
+      try {
+        [annotation] =
+          await visionClient.annotateImage({
+            image: { content: image },
+            features: [
+              { type: "LABEL_DETECTION", maxResults: 10 },
+              { type: "TEXT_DETECTION" },
+              { type: "IMAGE_PROPERTIES" }
+            ]
+          });
+      } catch (error) {
+        logger.error("Vision request failed", error);
+        throw new HttpsError(
+          "unavailable",
+          "The photo could not be analyzed right now."
+        );
+      }
+
+      if (annotation.error?.message) {
+        logger.warn("Vision could not annotate the photo", {
+          message: annotation.error.message
+        });
+        throw new HttpsError(
+          "unavailable",
+          "The photo could not be analyzed right now."
+        );
+      }
+
+      // Only the suggestion goes back; the photo is not stored here.
+      return suggestFromAnnotation(annotation);
+    }
+  );
