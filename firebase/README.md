@@ -9,6 +9,9 @@ Proyecto: campusfind-26ac2. Kotlin y Flutter usan el mismo `schema.md`.
 - `rules.test.cjs`: pruebas de permisos con el emulador.
 - `storage.test.cjs`: pruebas de las reglas de Storage.
 
+Desde la raíz del repo, `make` lista los comandos (pruebas, deploy de reglas y
+de una función, logs). Las pruebas de reglas necesitan Java 21 o superior.
+
 Para probar desde esta carpeta:
 `npm ci`
 `firebase emulators:exec --only firestore --project demo-campusfind 'node rules.test.cjs'`
