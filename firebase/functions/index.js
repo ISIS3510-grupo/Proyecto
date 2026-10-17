@@ -279,3 +279,65 @@ exports.suggestPhotoLabels =
       return suggestFromAnnotation(annotation);
     }
   );
+
+// Microsoft single sign-on (Jhostin). Firebase does not accept a Microsoft ID
+// token obtained by MSAL, so the app sends it here: once it is verified, the
+// student gets a Firebase custom token for the same (verified) account.
+const { getAuth } =
+  require("firebase-admin/auth");
+
+const { firebaseUserFor, verifyMicrosoftIdToken } =
+  require("./microsoft-token");
+
+// Microsoft ID tokens are around 2 KB.
+const MAX_ID_TOKEN_LENGTH =
+  8192;
+
+exports.exchangeMicrosoftToken =
+  onCall(
+    {
+      region: "us-east1",
+      timeoutSeconds: 15,
+      maxInstances: 5
+    },
+    async (request) => {
+      const idToken =
+        request.data?.idToken;
+
+      if (
+        typeof idToken !== "string" ||
+        idToken.length === 0 ||
+        idToken.length > MAX_ID_TOKEN_LENGTH
+      ) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Send the Microsoft ID token."
+        );
+      }
+
+      let identity;
+      try {
+        identity =
+          await verifyMicrosoftIdToken(idToken);
+      } catch (error) {
+        // Only the reason is logged, never the token.
+        logger.warn("Rejected Microsoft token", {
+          reason: error.code || error.message
+        });
+        throw new HttpsError(
+          "unauthenticated",
+          "Use your Uniandes Microsoft account."
+        );
+      }
+
+      const auth =
+        getAuth();
+
+      const uid =
+        await firebaseUserFor(auth, identity);
+
+      return {
+        customToken: await auth.createCustomToken(uid)
+      };
+    }
+  );
