@@ -23,6 +23,11 @@ SELECT
   COALESCE(
     TIMESTAMP_SECONDS(SAFE_CAST(JSON_VALUE(data, '$.occurredAt._seconds') AS INT64)),
     SAFE.TIMESTAMP(JSON_VALUE(data, '$.occurredAt'))
-  ) AS occurred_at
+  ) AS occurred_at,
+  -- Día del uso: las series de tiempo de Looker Studio agrupan por fecha, no por segundo.
+  DATE(COALESCE(
+    TIMESTAMP_SECONDS(SAFE_CAST(JSON_VALUE(data, '$.occurredAt._seconds') AS INT64)),
+    SAFE.TIMESTAMP(JSON_VALUE(data, '$.occurredAt'))
+  ), 'America/Bogota') AS occurred_on
 FROM campusfind_analytics.feature_usage_events_raw_latest
 WHERE operation != 'DELETE';
