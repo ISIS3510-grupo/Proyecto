@@ -6,6 +6,7 @@ Firestore → extensión "Stream Firestore to BigQuery" → dataset
 | BQ | Colección | Extensión | Vista |
 |---|---|---|---|
 | Features más usadas (Jhostin, T3) | `featureUsageEvents` | `bq-feature-usage-events` | `bq_feature_usage` |
+| Features con los tiempos de respuesta más largos (Jhostin, T5) | `featureUsageEvents`, `performanceMetrics` | `bq-feature-usage-events`, `bq-performance-metrics` | `bq_feature_response_times` |
 | Tiempo de búsqueda de coincidencias (Daniel, T1) | `performanceMetrics` | `bq-performance-metrics` | `bq_performance_metrics` |
 | Tiempo de registro de reportes (Emilio, T3) | `performanceMetrics` | `bq-performance-metrics` | `bq_performance_metrics` |
 | % que revisa la coincidencia notificada (Sofía, T3) | `notifications` | `bq-notifications` | `bq_match_review` |
