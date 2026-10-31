@@ -12,13 +12,15 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
-    // Igual a la regla publicada desde la consola: lee cualquier usuario
-    // autenticado y solo el admin sube fotos de objetos encontrados.
+    // Lee cualquier usuario autenticado. Cualquiera puede crear la foto de un
+    // objeto que reporta, pero solo el admin puede reemplazarla o borrarla.
     match /foundItems/{fileName} {
       allow read: if request.auth != null;
       allow write: if request.auth != null
-        && isAdmin()
-        && validImage();
+        && validImage()
+        && (resource == null || isAdmin());
+      allow delete: if request.auth != null
+        && isAdmin();
     }
 
     // Dueño del reporte cuyo id es el nombre del archivo sin '.jpg'.
