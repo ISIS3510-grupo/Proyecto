@@ -41,8 +41,11 @@ async function main() {
     await check('Admin sube foto de objeto encontrado',
       uploadBytes(ref(admin, 'foundItems/objeto1.jpg'), imagen, jpeg), true);
 
-    await check('Estudiante no sube foto de objeto encontrado',
-      uploadBytes(ref(camilo, 'foundItems/objeto2.jpg'), imagen, jpeg), false);
+    await check('Estudiante sube foto de objeto encontrado',
+      uploadBytes(ref(camilo, 'foundItems/objeto2.jpg'), imagen, jpeg), true);
+
+    await check('Estudiante no sobrescribe foto de objeto encontrado',
+      uploadBytes(ref(camilo, 'foundItems/objeto1.jpg'), imagen, jpeg), false);
 
     await check('Admin no sube archivos que no son imagen',
       uploadBytes(ref(admin, 'foundItems/objeto3.jpg'), imagen,
