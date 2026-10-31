@@ -16,5 +16,15 @@
   },
   "storage": {
     "rules": "storage.rules"
+  },
+  "extensions": {
+    "bq-feature-usage-events": "firebase/firestore-bigquery-export@0.3.3",
+    "bq-performance-metrics": "firebase/firestore-bigquery-export@0.3.3",
+    "bq-lost-reports": "firebase/firestore-bigquery-export@0.3.3",
+    "bq-found-items": "firebase/firestore-bigquery-export@0.3.3",
+    "bq-notifications": "firebase/firestore-bigquery-export@0.3.3",
+    "bq-matches": "firebase/firestore-bigquery-export@0.3.3",
+    "bq-app-config": "firebase/firestore-bigquery-export@0.3.3",
+    "bq-claim-verifications": "firebase/firestore-bigquery-export@0.3.3"
   }
 }

@@ -183,6 +183,76 @@ exports.aggregateFeatureUsage =
     }
   );
 
+// BQ Camilo (Type 3): ownership-verification rate with vs without private details.
+// Recomputes claimVerifications every hour, so edits and old claims are covered.
+const { computeClaimVerifications } =
+  require("./claim-verification");
+
+exports.refreshClaimVerifications =
+  onSchedule(
+    {
+      schedule: "every 1 hours",
+      timeZone: "America/Bogota",
+      region: "us-east1"
+    },
+    async () => {
+      const results =
+        await computeClaimVerifications(db);
+
+      const batch = db.batch();
+      for (const result of results) {
+        batch.set(
+          db.doc(`claimVerifications/${result.claimId}`),
+          {
+            ...result,
+            verifiedAt: FieldValue.serverTimestamp()
+          }
+        );
+      }
+      await batch.commit();
+
+      logger.info("Claim verifications refreshed", {
+        claimCount: results.length
+      });
+    }
+  );
+
+exports.createPossibleMatchNotification = onDocumentCreated(
+  {
+    document: "matches/{matchId}",
+    region: "us-east1"
+  },
+  async (event) => {
+    const match = event.data?.data();
+
+    if (!match?.ownerUid) return;
+
+    const matchId = event.params.matchId;
+    const notificationId = `${matchId}_${match.ownerUid}`;
+
+    const notificationRef = db
+      .collection("notifications")
+      .doc(notificationId);
+
+    try {
+      await notificationRef.create({
+        recipientUid: match.ownerUid,
+        matchId: matchId,
+        channel: "in_app",
+        sentAt: FieldValue.serverTimestamp()
+      });
+
+      console.log(`Notification created: ${notificationId}`);
+    } catch (error) {
+      if (error.code === 6 || error.code === "already-exists") {
+        return;
+      }
+
+      throw error;
+    }
+  }
+);
+
 // External service (Jhostin): Google Cloud Vision reads the photo of a lost
 // item and suggests its category and a short description before the student
 // sends the report. Called from Flutter with the compressed photo in base64.

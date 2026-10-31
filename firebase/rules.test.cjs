@@ -401,6 +401,18 @@ async function main() {
       setDoc(doc(camilo, 'featureUsageEvents/uso4'),
         uso('camilo', { email: 'camilo@uniandes.edu.co' })), false);
 
+    await check('Camilo registra el uso con su tiempo de respuesta',
+      setDoc(doc(camilo, 'featureUsageEvents/uso6'), uso('camilo', { durationMs: 850 })), true);
+
+    await check('No se acepta un tiempo de respuesta negativo',
+      setDoc(doc(camilo, 'featureUsageEvents/uso7'), uso('camilo', { durationMs: -1 })), false);
+
+    await check('No se acepta un tiempo de respuesta que no es un entero',
+      setDoc(doc(camilo, 'featureUsageEvents/uso8'), uso('camilo', { durationMs: '850' })), false);
+
+    await check('No se acepta un tiempo de respuesta de 10 minutos o más',
+      setDoc(doc(camilo, 'featureUsageEvents/uso9'), uso('camilo', { durationMs: 600000 })), false);
+
     await check('Anónimo no registra uso',
       setDoc(doc(anonimo, 'featureUsageEvents/uso5'), uso('anonimo')), false);
 
