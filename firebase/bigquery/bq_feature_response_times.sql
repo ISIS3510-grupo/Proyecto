@@ -23,6 +23,7 @@ WITH uses AS (
       WHEN metric_type = 'match_search' THEN 'Search possible matches'
       WHEN metric_type = 'report_registration' AND report_type = 'found' THEN 'Register a found item'
       WHEN metric_type = 'report_registration' THEN 'Register a lost report'
+      WHEN metric_type = 'offline_sync' THEN 'Sync reports after offline'
       ELSE metric_label
     END,
     platform,
