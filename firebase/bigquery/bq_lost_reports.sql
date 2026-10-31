@@ -29,5 +29,6 @@ SELECT
        COALESCE(campusfind_analytics.fs_ts(JSON_QUERY(data, '$.statusChangedAt')),
                 campusfind_analytics.fs_ts(JSON_QUERY(data, '$.reportedAt'))), HOUR) > 7 * 24, 1, 0) AS stuck
 FROM campusfind_analytics.lost_reports_raw_latest
-CROSS JOIN cfg
+-- LEFT JOIN: sin appConfig/general exportado se conservan las filas (categoría "Other").
+LEFT JOIN cfg ON TRUE
 WHERE operation != 'DELETE';

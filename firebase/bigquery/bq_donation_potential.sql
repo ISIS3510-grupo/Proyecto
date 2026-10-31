@@ -25,5 +25,6 @@ SELECT
   JSON_VALUE(f.data, '$.status') = 'available' AS unclaimed,
   campusfind_analytics.fs_ts(JSON_QUERY(f.data, '$.createdAt')) AS created_at
 FROM campusfind_analytics.found_items_raw_latest f
-CROSS JOIN cfg
+-- LEFT JOIN: sin appConfig/general exportado se conservan las filas (categoría "Other").
+LEFT JOIN cfg ON TRUE
 WHERE f.operation != 'DELETE';

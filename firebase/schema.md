@@ -63,6 +63,7 @@ claims/{claimId}
 
 featureUsageEvents/{eventId}
   uid, feature, platform, occurredAt, durationMs opcional
+  durationMs: entero, 0 <= durationMs < 600000 (menos de 10 minutos); fuera de ese rango se omite.
   feature: search_found_items|report_lost_item|submit_lost_report|
            report_found_item|view_my_report|password_login|biometric_login
   platform: kotlin|flutter
