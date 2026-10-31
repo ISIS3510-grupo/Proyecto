@@ -252,3 +252,162 @@ exports.createPossibleMatchNotification = onDocumentCreated(
     }
   }
 );
+
+// External service (Jhostin): Google Cloud Vision reads the photo of a lost
+// item and suggests its category and a short description before the student
+// sends the report. Called from Flutter with the compressed photo in base64.
+const { onCall, HttpsError } =
+  require("firebase-functions/v2/https");
+
+const { ImageAnnotatorClient } =
+  require("@google-cloud/vision");
+
+const { suggestFromAnnotation } =
+  require("./photo-labels");
+
+// The app sends photos of at most 1280 px at quality 70 (about 300 KB);
+// 2 MB of base64 leaves room without accepting arbitrary files.
+const MAX_PHOTO_BASE64_LENGTH =
+  2 * 1024 * 1024;
+
+const UNIANDES_EMAIL =
+  /^[^@]+@uniandes\.edu\.co$/;
+
+let visionClient;
+
+exports.suggestPhotoLabels =
+  onCall(
+    {
+      region: "us-east1",
+      memory: "512MiB",
+      timeoutSeconds: 30,
+      maxInstances: 5
+    },
+    async (request) => {
+      // Same condition as campusUser() in firestore.rules.
+      const token =
+        request.auth?.token;
+
+      if (
+        !token ||
+        token.email_verified !== true ||
+        !UNIANDES_EMAIL.test(token.email || "")
+      ) {
+        throw new HttpsError(
+          "unauthenticated",
+          "Sign in with a verified Uniandes account."
+        );
+      }
+
+      const image =
+        request.data?.image;
+
+      if (
+        typeof image !== "string" ||
+        image.length === 0 ||
+        image.length > MAX_PHOTO_BASE64_LENGTH
+      ) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Send one compressed photo in base64."
+        );
+      }
+
+      visionClient ??=
+        new ImageAnnotatorClient();
+
+      let annotation;
+      try {
+        [annotation] =
+          await visionClient.annotateImage({
+            image: { content: image },
+            features: [
+              { type: "LABEL_DETECTION", maxResults: 10 },
+              { type: "TEXT_DETECTION" },
+              { type: "IMAGE_PROPERTIES" }
+            ]
+          });
+      } catch (error) {
+        logger.error("Vision request failed", error);
+        throw new HttpsError(
+          "unavailable",
+          "The photo could not be analyzed right now."
+        );
+      }
+
+      if (annotation.error?.message) {
+        logger.warn("Vision could not annotate the photo", {
+          message: annotation.error.message
+        });
+        throw new HttpsError(
+          "unavailable",
+          "The photo could not be analyzed right now."
+        );
+      }
+
+      // Only the suggestion goes back; the photo is not stored here.
+      return suggestFromAnnotation(annotation);
+    }
+  );
+
+// Microsoft single sign-on (Jhostin). Firebase does not accept a Microsoft ID
+// token obtained by MSAL, so the app sends it here: once it is verified, the
+// student gets a Firebase custom token for the same (verified) account.
+const { getAuth } =
+  require("firebase-admin/auth");
+
+const { firebaseUserFor, verifyMicrosoftIdToken } =
+  require("./microsoft-token");
+
+// Microsoft ID tokens are around 2 KB.
+const MAX_ID_TOKEN_LENGTH =
+  8192;
+
+exports.exchangeMicrosoftToken =
+  onCall(
+    {
+      region: "us-east1",
+      timeoutSeconds: 15,
+      maxInstances: 5
+    },
+    async (request) => {
+      const idToken =
+        request.data?.idToken;
+
+      if (
+        typeof idToken !== "string" ||
+        idToken.length === 0 ||
+        idToken.length > MAX_ID_TOKEN_LENGTH
+      ) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Send the Microsoft ID token."
+        );
+      }
+
+      let identity;
+      try {
+        identity =
+          await verifyMicrosoftIdToken(idToken);
+      } catch (error) {
+        // Only the reason is logged, never the token.
+        logger.warn("Rejected Microsoft token", {
+          reason: error.code || error.message
+        });
+        throw new HttpsError(
+          "unauthenticated",
+          "Use your Uniandes Microsoft account."
+        );
+      }
+
+      const auth =
+        getAuth();
+
+      const uid =
+        await firebaseUserFor(auth, identity);
+
+      return {
+        customToken: await auth.createCustomToken(uid)
+      };
+    }
+  );
