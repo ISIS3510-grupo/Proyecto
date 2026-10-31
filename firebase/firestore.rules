@@ -252,13 +252,19 @@ service cloud.firestore {
       allow read: if admin();
       allow create: if self(request.resource.data.uid)
         && request.resource.data.keys().hasOnly([
-          'uid', 'metricType', 'reportType', 'platform', 'durationMs', 'recordedAt'
+          'uid', 'metricType', 'reportType', 'platform', 'durationMs', 'recordedAt',
+          'reportCount', 'offlineDurationMs'
         ])
         && request.resource.data.get('reportType', 'lost') in ['lost', 'found']
         && request.resource.data.keys().hasAll([
           'uid', 'metricType', 'platform', 'durationMs', 'recordedAt'
         ])
-        && request.resource.data.metricType in ['match_search', 'report_registration']
+        && request.resource.data.metricType in ['match_search', 'report_registration', 'offline_sync']
+        // Offline sync time (Flutter): how many queued reports were sent and how long the phone was offline.
+        && request.resource.data.get('reportCount', 1) is int
+        && request.resource.data.get('reportCount', 1) >= 1
+        && request.resource.data.get('offlineDurationMs', 0) is number
+        && request.resource.data.get('offlineDurationMs', 0) >= 0
         && request.resource.data.platform in ['kotlin', 'flutter']
         && request.resource.data.durationMs is number
         && request.resource.data.durationMs >= 0
