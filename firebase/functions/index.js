@@ -216,3 +216,39 @@ exports.refreshClaimVerifications =
       });
     }
   );
+
+exports.createPossibleMatchNotification = onDocumentCreated(
+  {
+    document: "matches/{matchId}",
+    region: "us-east1"
+  },
+  async (event) => {
+    const match = event.data?.data();
+
+    if (!match?.ownerUid) return;
+
+    const matchId = event.params.matchId;
+    const notificationId = `${matchId}_${match.ownerUid}`;
+
+    const notificationRef = db
+      .collection("notifications")
+      .doc(notificationId);
+
+    try {
+      await notificationRef.create({
+        recipientUid: match.ownerUid,
+        matchId: matchId,
+        channel: "in_app",
+        sentAt: FieldValue.serverTimestamp()
+      });
+
+      console.log(`Notification created: ${notificationId}`);
+    } catch (error) {
+      if (error.code === 6 || error.code === "already-exists") {
+        return;
+      }
+
+      throw error;
+    }
+  }
+);
