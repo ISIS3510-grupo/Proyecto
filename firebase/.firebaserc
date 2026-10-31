@@ -1,0 +1,18 @@
+{
+  "projects": {},
+  "targets": {},
+  "etags": {
+    "campusfind-26ac2": {
+      "extensionInstances": {
+        "bq-app-config": "8fbc752aa3bb2189df5ca475d71742048b1b8baa257b1b557d67bce07461e58c",
+        "bq-claim-verifications": "897c8a289bda3266a87b4524657e3fc04ea4df545ad12b93f539f7cb2c61f3d0",
+        "bq-feature-usage-events": "57c3971889ee98a4bddb0f7b740abcd92d0494ad620028023597dbdb4badc7d9",
+        "bq-found-items": "9335f2f999ee65fa777484847f1a15891741f9bc83c0009244f830996461ee87",
+        "bq-lost-reports": "1f3855596b65ff408142de26a155e22c84a9bc0627810383d8bd5525d2695315",
+        "bq-matches": "edb4129d9ef09ff265af728648a0cab389cc7b2c89eca7e316077dea6768cdce",
+        "bq-notifications": "d64927c585b017ad5b6d5d6e90ee6e6a775cd693a1ca4887b427e98ede1e2dc3",
+        "bq-performance-metrics": "2ed13bb081a61c9410be4a90098fd5edb2c125efc596382462cd7b1f9836e609"
+      }
+    }
+  }
+}

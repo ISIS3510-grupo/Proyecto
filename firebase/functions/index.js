@@ -182,6 +182,41 @@ exports.aggregateFeatureUsage =
       });
     }
   );
+
+// BQ Camilo (Type 3): ownership-verification rate with vs without private details.
+// Recomputes claimVerifications every hour, so edits and old claims are covered.
+const { computeClaimVerifications } =
+  require("./claim-verification");
+
+exports.refreshClaimVerifications =
+  onSchedule(
+    {
+      schedule: "every 1 hours",
+      timeZone: "America/Bogota",
+      region: "us-east1"
+    },
+    async () => {
+      const results =
+        await computeClaimVerifications(db);
+
+      const batch = db.batch();
+      for (const result of results) {
+        batch.set(
+          db.doc(`claimVerifications/${result.claimId}`),
+          {
+            ...result,
+            verifiedAt: FieldValue.serverTimestamp()
+          }
+        );
+      }
+      await batch.commit();
+
+      logger.info("Claim verifications refreshed", {
+        claimCount: results.length
+      });
+    }
+  );
+
 exports.createPossibleMatchNotification = onDocumentCreated(
   {
     document: "matches/{matchId}",

@@ -62,7 +62,8 @@ claims/{claimId}
   Las respuestas privadas de propiedad requieren acceso restringido.
 
 featureUsageEvents/{eventId}
-  uid, feature, platform, occurredAt
+  uid, feature, platform, occurredAt, durationMs opcional
+  durationMs: entero, 0 <= durationMs < 600000 (menos de 10 minutos); fuera de ese rango se omite.
   feature: search_found_items|report_lost_item|submit_lost_report|
            report_found_item|view_my_report|password_login|biometric_login
   platform: kotlin|flutter
@@ -88,6 +89,7 @@ BQ4 Daniel: performanceMetrics con metricType=match_search.
 BQ5 Emilio: performanceMetrics con metricType=report_registration.
 BQ6 Alex: foundItems sin reclamar, por semestre, categoría y elegibilidad de donación.
 BQ7 Jhostin (Type 3): featureUsageEvents; uso de cada funcionalidad, total y últimos 7 días.
+BQ Jhostin (Type 5): featureUsageEvents.durationMs y performanceMetrics; tiempo de respuesta por funcionalidad cruzado con su uso.
 
 ## Reglas del equipo
 
