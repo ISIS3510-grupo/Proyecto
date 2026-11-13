@@ -44,3 +44,17 @@ test('has no most used feature when there are no events', async () => {
   assert.strictEqual(usage.mostUsedFeature, null);
   assert.strictEqual(usage.eventCount, 0);
 });
+
+test('counts a lost report once: sending the form is not a second use', async () => {
+  const now = new Date('2026-10-01T12:00:00Z');
+  const db = fakeDb([
+    { feature: 'report_lost_item', platform: 'flutter', occurredAt: now },
+    { feature: 'submit_lost_report', platform: 'flutter', occurredAt: now }
+  ]);
+
+  const usage = await computeFeatureUsage(db, now);
+
+  assert.strictEqual(usage.eventCount, 1);
+  assert.strictEqual(usage.totals.submit_lost_report, undefined);
+  assert.ok(usage.ranking.every(({ feature }) => feature !== 'submit_lost_report'));
+});

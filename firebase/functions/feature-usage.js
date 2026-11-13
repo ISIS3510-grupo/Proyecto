@@ -3,8 +3,10 @@
 
 const FEATURES = [
   'search_found_items',
+  // A lost report counts once, when the student opens "I lost an item".
+  // submit_lost_report is the end of that same flow, so it is not a use of its
+  // own (it is still stored for the response time BQ).
   'report_lost_item',
-  'submit_lost_report',
   'report_found_item',
   'view_my_report',
   'password_login',
