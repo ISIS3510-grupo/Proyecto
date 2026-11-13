@@ -12,7 +12,8 @@ WITH uses AS (
     feature_label AS feature,
     platform,
     SAFE_CAST(JSON_VALUE(e.data, '$.durationMs') AS FLOAT64) / 1000 AS duration_s
-  FROM campusfind_analytics.bq_feature_usage AS u
+  -- Todos los eventos: aquí enviar el reporte sí cuenta, porque tiene su propio tiempo.
+  FROM campusfind_analytics.bq_feature_events AS u
   JOIN campusfind_analytics.feature_usage_events_raw_latest AS e
     ON e.document_id = u.event_id
   WHERE e.operation != 'DELETE'
