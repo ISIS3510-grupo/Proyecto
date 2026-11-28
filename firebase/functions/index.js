@@ -411,3 +411,22 @@ exports.exchangeMicrosoftToken =
       };
     }
   );
+
+
+const { BigQuery } = require("@google-cloud/bigquery");
+const { refreshDeliveryMethods } = require("./delivery-methods");
+
+exports.refreshDeliveryMethodsBQ = onSchedule(
+  {
+    schedule: "every 1 hours",
+    timeZone: "America/Bogota",
+    region: "us-east1"
+  },
+  async () => {
+    const bigquery = new BigQuery({
+      projectId: "campusfind-26ac2"
+    });
+
+    await refreshDeliveryMethods(db, bigquery);
+  }
+);
